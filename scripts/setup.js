@@ -2,7 +2,7 @@
 // Reads keys from .env.local or environment variables.
 
 import { OnCell } from "@oncell/sdk";
-import { readFileSync, readdirSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, readdirSync, existsSync } from "fs";
 import { join, extname } from "path";
 
 // Load .env.local if it exists
@@ -51,10 +51,19 @@ async function main() {
     console.log(`Indexed: ${result.indexed} chunks from ${result.files} files`);
   }
 
-  console.log(`\nAdd to .env.local:`);
-  console.log(`ONCELL_API_KEY=${process.env.ONCELL_API_KEY}`);
-  console.log(`ONCELL_CELL_ID=${cell.id}`);
-  console.log(`\nThen run: npm run dev`);
+  // Auto-write cell ID to .env.local
+  let envContent = existsSync(envPath) ? readFileSync(envPath, "utf-8") : "";
+  if (envContent.includes("ONCELL_CELL_ID=")) {
+    envContent = envContent.replace(/ONCELL_CELL_ID=.*/, `ONCELL_CELL_ID=${cell.id}`);
+  } else {
+    envContent = envContent.trimEnd() + `\nONCELL_CELL_ID=${cell.id}\n`;
+  }
+  if (!envContent.includes("ONCELL_API_KEY=")) {
+    envContent = `ONCELL_API_KEY=${process.env.ONCELL_API_KEY}\n` + envContent;
+  }
+  writeFileSync(envPath, envContent);
+  console.log(`\nSaved ONCELL_CELL_ID=${cell.id} to .env.local`);
+  console.log(`Run: npm run dev`);
 }
 
 main().catch(err => { console.error(err.message); process.exit(1); });
