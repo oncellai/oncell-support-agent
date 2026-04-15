@@ -1,13 +1,24 @@
 // Setup script — creates an OnCell cell with the support agent code and uploads docs.
-// Run once: ONCELL_API_KEY=... OPENROUTER_API_KEY=... node scripts/setup.js
+// Reads keys from .env.local or environment variables.
 
 import { OnCell } from "@oncell/sdk";
 import { readFileSync, readdirSync, existsSync } from "fs";
 import { join, extname } from "path";
 
+// Load .env.local if it exists
+const envPath = new URL("../.env.local", import.meta.url).pathname;
+if (existsSync(envPath)) {
+  for (const line of readFileSync(envPath, "utf-8").split("\n")) {
+    const match = line.match(/^(\w+)=(.+)$/);
+    if (match && !process.env[match[1]]) {
+      process.env[match[1]] = match[2].trim();
+    }
+  }
+}
+
 async function main() {
-  if (!process.env.ONCELL_API_KEY) { console.error("Set ONCELL_API_KEY"); process.exit(1); }
-  if (!process.env.OPENROUTER_API_KEY) { console.error("Set OPENROUTER_API_KEY"); process.exit(1); }
+  if (!process.env.ONCELL_API_KEY) { console.error("Set ONCELL_API_KEY in .env.local or environment"); process.exit(1); }
+  if (!process.env.OPENROUTER_API_KEY) { console.error("Set OPENROUTER_API_KEY in .env.local or environment"); process.exit(1); }
 
   const oncell = new OnCell({ apiKey: process.env.ONCELL_API_KEY });
   const agentCode = readFileSync(new URL("../lib/agent-raw.js", import.meta.url), "utf-8");
