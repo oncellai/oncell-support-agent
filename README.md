@@ -1,34 +1,39 @@
-# oncell-support-agent
+# Build an AI Support Agent in 5 Minutes — Without Touching Infra
 
-AI customer support agent that answers questions from your docs — with citations.
+No vector database. No file storage. No conversation store. No infrastructure to manage.
 
-Upload markdown files, and your customers get instant answers sourced directly from your documentation. Each customer gets their own conversation history. Every answer links back to the source.
+Upload your docs, get a support chatbot that answers customer questions with citations — powered by [OnCell](https://oncell.ai).
 
-Built with [Next.js](https://nextjs.org) and [OnCell](https://oncell.ai).
+[![Demo](https://img.youtube.com/vi/rWIU43pOH5Y/maxresdefault.jpg)](https://youtu.be/rWIU43pOH5Y)
 
-![chat screenshot](https://oncell.ai/oss/support-agent-chat.png)
+**[Watch the demo (5 min)](https://youtu.be/rWIU43pOH5Y)**
 
-## What it does
+## What you get
 
-- **RAG over your docs** — upload markdown, it gets chunked by heading and indexed for search
-- **Citations** — every answer shows which doc it came from, click to see the full source
-- **Per-customer memory** — conversation history is tracked per visitor, automatically
-- **Admin panel** — upload and manage docs from `/admin`
-- **One API call** — the entire backend (storage, search, database, agent runtime) is a single OnCell cell
+- **RAG over your docs** — upload markdown, ask questions, get answers with sources
+- **Citations** — every answer shows which doc it came from, click to read the full source
+- **Per-customer memory** — conversation history tracked per visitor, automatically
+- **Admin panel** — upload and manage docs at `/admin`
+- **Zero infra** — storage, search, database, and agent runtime are all handled by OnCell
 
-## How it works
+## How OnCell makes this possible
 
+Traditional support bots need you to stitch together a vector database, file storage, a runtime, and a conversation store. That's four services before you write a single line of agent logic.
+
+OnCell gives you all of that in one call:
+
+```javascript
+const cell = await oncell.cells.create({
+  customerId: "support-agent",
+  agent: agentCode,
+});
+// cell.store   → file storage (local NVMe)
+// cell.search  → full-text + vector search
+// cell.db      → key-value database
+// All local. All included. Zero config.
 ```
-User asks question
-    → search knowledge base (vector + text)
-    → build prompt with top 5 results
-    → call LLM (OpenRouter)
-    → return answer with source citations
-```
 
-The agent code runs inside an [OnCell](https://oncell.ai) cell — an isolated environment with built-in storage, database, and search. No infrastructure to set up. No vector database to manage. No file storage to configure.
-
-OnCell handles all of that in one primitive: the cell.
+The agent code in this repo is **one file** (`lib/agent-raw.js`). It reads docs from storage, searches them, calls an LLM, and saves conversation history. That's the entire backend.
 
 ## Quick start
 
@@ -43,28 +48,24 @@ npm install
 - **OnCell** — sign up at [oncell.ai](https://oncell.ai), create an API key
 - **OpenRouter** — sign up at [openrouter.ai](https://openrouter.ai), create an API key
 
-### 2. Run setup
-
-This creates an OnCell cell, uploads the example docs, and indexes them:
-
-```bash
-ONCELL_API_KEY=oncell_sk_... OPENROUTER_API_KEY=sk-or-... node scripts/setup.js
-```
-
-### 3. Configure
-
-Copy the cell ID from the setup output into `.env.local`:
+Add them to `.env.local`:
 
 ```bash
 cp .env.example .env.local
+# Edit .env.local with your keys
 ```
 
-```
-ONCELL_API_KEY=oncell_sk_...
-ONCELL_CELL_ID=dev-xxxxxxxx--support-agent
+### 2. Run setup
+
+Creates an OnCell cell, uploads example docs, indexes them:
+
+```bash
+node scripts/setup.js
 ```
 
-### 4. Run
+The cell ID is automatically saved to `.env.local`.
+
+### 3. Run
 
 ```bash
 npm run dev
@@ -73,11 +74,25 @@ npm run dev
 - **Chat** — http://localhost:3000
 - **Admin** — http://localhost:3000/admin
 
+That's it. Your support agent is live.
+
+## How it works
+
+```
+User asks question
+    → search knowledge base
+    → build prompt with top results
+    → call LLM (OpenRouter)
+    → return answer with source citations
+```
+
+The agent runs inside an [OnCell](https://oncell.ai) cell — an isolated environment with built-in storage, database, and search. The Next.js app is just the UI. All the heavy lifting happens in the cell.
+
 ## Adding your docs
 
-**Option A: Admin UI** — go to `/admin`, paste markdown, click upload.
+**Option A** — go to `/admin`, paste markdown, click upload.
 
-**Option B: File system** — drop `.md` files in `example-docs/` and re-run `node scripts/setup.js`.
+**Option B** — drop `.md` files in `example-docs/` and re-run `node scripts/setup.js`.
 
 Docs are chunked by `##` and `###` headings. Each section becomes independently searchable. Write your docs with clear headings for best results.
 
@@ -91,21 +106,19 @@ Next.js (your app)
 └── /api/admin/*   Doc management → calls OnCell cell
 
 OnCell cell (agent infrastructure)
-├── store          Docs stored on local NVMe
-├── search         Full-text + vector search index
+├── store          Docs on local NVMe
+├── search         Full-text + vector search
 ├── db             Per-customer conversation history
 └── agent          RAG logic (search → prompt → LLM → answer)
 ```
 
-Everything the agent needs — storage, search, database — lives inside the cell. The Next.js app is just the UI layer. You can swap it for any frontend, or skip it entirely and call the cell directly.
-
 ## Customization
 
-**Change the LLM** — set `LLM_MODEL` in your cell secrets (default: `google/gemini-2.5-flash`). Any [OpenRouter model](https://openrouter.ai/models) works.
+**Change the LLM** — set `LLM_MODEL` in cell secrets (default: `google/gemini-2.5-flash`). Any [OpenRouter model](https://openrouter.ai/models) works.
 
-**Change the system prompt** — edit `lib/agent-raw.js`, the `ask` method. Re-run setup to update the cell.
+**Change the prompt** — edit `lib/agent-raw.js`, the `ask` method. Re-run setup to update the cell.
 
-**Style the chat** — it's a standard Next.js app with Tailwind. Edit `app/page.tsx`.
+**Style the chat** — edit `app/page.tsx`. Standard Next.js + Tailwind.
 
 ## Project structure
 
@@ -120,27 +133,14 @@ lib/
   agent-raw.js             Agent code (runs inside the cell)
 scripts/
   setup.js                 One-time cell creation + doc upload
-example-docs/              Sample docs (account, billing, API, etc.)
+example-docs/              Sample docs
 ```
 
-## Why OnCell
+## Learn more
 
-Traditional support bots need you to stitch together a vector database, file storage, a runtime, and a conversation store. That's four services before you write a single line of agent logic.
-
-OnCell gives you all of that in one call:
-
-```javascript
-const cell = await oncell.cells.create({
-  customerId: "support-agent",
-  agent: agentCode,
-});
-// cell.store   → file storage
-// cell.search  → vector search
-// cell.db      → key-value database
-// All local. All included. Zero config.
-```
-
-Learn more at [oncell.ai](https://oncell.ai).
+- [OnCell](https://oncell.ai) — build AI agents without building infra
+- [OnCell docs](https://oncell.ai/docs) — SDK reference, quickstart, pricing
+- [Demo video](https://youtu.be/rWIU43pOH5Y) — watch this project built in 5 minutes
 
 ## License
 
