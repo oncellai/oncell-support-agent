@@ -25,7 +25,7 @@ async function main() {
 
   console.log("Creating cell...");
   const cell = await oncell.cells.create({
-    customerId: "support-agent",
+    customerId: `support-agent-${Date.now()}`,
     tier: "starter",
     permanent: true,
     secrets: {
