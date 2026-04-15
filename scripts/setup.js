@@ -1,0 +1,49 @@
+// Setup script — creates an OnCell cell with the support agent code and uploads docs.
+// Run once: ONCELL_API_KEY=... OPENROUTER_API_KEY=... node scripts/setup.js
+
+import { OnCell } from "@oncell/sdk";
+import { readFileSync, readdirSync, existsSync } from "fs";
+import { join, extname } from "path";
+
+async function main() {
+  if (!process.env.ONCELL_API_KEY) { console.error("Set ONCELL_API_KEY"); process.exit(1); }
+  if (!process.env.OPENROUTER_API_KEY) { console.error("Set OPENROUTER_API_KEY"); process.exit(1); }
+
+  const oncell = new OnCell({ apiKey: process.env.ONCELL_API_KEY });
+  const agentCode = readFileSync(new URL("../lib/agent-raw.js", import.meta.url), "utf-8");
+
+  console.log("Creating cell...");
+  const cell = await oncell.cells.create({
+    customerId: "support-agent",
+    tier: "starter",
+    permanent: true,
+    secrets: {
+      OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+      LLM_MODEL: process.env.LLM_MODEL || "google/gemini-2.5-flash",
+    },
+    agent: agentCode,
+  });
+  console.log(`Cell: ${cell.id}`);
+
+  // Upload docs
+  const docsDir = new URL("../example-docs", import.meta.url).pathname;
+  if (existsSync(docsDir)) {
+    const files = readdirSync(docsDir).filter(f => [".md", ".txt"].includes(extname(f)));
+    for (const file of files) {
+      const content = readFileSync(join(docsDir, file), "utf-8");
+      await oncell.cells.writeFile(cell.id, `docs/${file}`, content);
+      console.log(`Uploaded: ${file}`);
+    }
+
+    console.log("Indexing...");
+    const result = await oncell.cells.request(cell.id, "index_docs");
+    console.log(`Indexed: ${result.indexed} chunks from ${result.files} files`);
+  }
+
+  console.log(`\nAdd to .env.local:`);
+  console.log(`ONCELL_API_KEY=${process.env.ONCELL_API_KEY}`);
+  console.log(`ONCELL_CELL_ID=${cell.id}`);
+  console.log(`\nThen run: npm run dev`);
+}
+
+main().catch(err => { console.error(err.message); process.exit(1); });
